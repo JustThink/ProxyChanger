@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
 using System.Net;
@@ -113,6 +114,11 @@ namespace ProxyChanger
 				_log.Error("Unable to read lines from a file {0}", _downloadFileName);
 				return false;
 			}
+			if (lines.Length == 0)
+			{
+				_log.Debug("Skip step...");
+				return true;
+			}
 
 			var line = GetRamdomLine(lines);
 			if ( !WriteLines(line) )
@@ -159,12 +165,12 @@ namespace ProxyChanger
 			_log.Debug("Reading lines from a file {0}", _downloadFileName);
 
 			StreamReader file = null;
-			string[] lines = null;
+			string[] items = null;
 			try
 			{
 				file = new StreamReader(_downloadFileName);
 				string line = file.ReadToEnd();
-				lines = line.Split('\n');
+				items = line.Split('\n');
 			}
 			catch ( Exception e )
 			{
@@ -174,6 +180,31 @@ namespace ProxyChanger
 			{
 				if ( file != null )
 					file.Close();
+			}
+
+			if (( items == null ) || (items.Length == 0)) return null;
+
+
+			string[] lines = null;
+			try
+			{
+				var collection = new List<string>();
+				foreach ( var item in items )
+				{
+					if ( !string.IsNullOrEmpty(item) )
+					{
+						var str = item.Trim();
+						if ( !string.IsNullOrEmpty(str) )
+						{
+							collection.Add(str);
+						}
+					}
+				}
+				lines = collection.ToArray();
+			}
+			catch (Exception e)
+			{
+				_log.ErrorException("Error when parse lines", e);
 			}
 			return lines;
 		}
