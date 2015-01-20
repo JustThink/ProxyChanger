@@ -9,11 +9,11 @@ using System.Runtime.InteropServices;
 #endif
 [assembly: AssemblyCompany("Just Think")]
 [assembly: AssemblyProduct("Proxy Changer")]
-[assembly: AssemblyCopyright("Copyright © 2012 Just Think. All rights reserved.")]
+[assembly: AssemblyCopyright("Copyright © 2012-2015 Just Think. All rights reserved.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
-[assembly: AssemblyVersion("0.1.2.0")]
+[assembly: AssemblyVersion("0.2.0.0")]
 
 [assembly: ComVisible(false)]
 

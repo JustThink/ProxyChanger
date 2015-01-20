@@ -1,7 +1,9 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Timers;
 using NLog;
@@ -21,6 +23,7 @@ namespace ProxyChanger
 		private string _password;
 		private string _prefix;
 		private string _fileName;
+        private int _size;
 
 		public Worker(Logger Log)
 		{
@@ -62,6 +65,7 @@ namespace ProxyChanger
 				_password = ConfigurationManager.AppSettings["password"];
 				_prefix = ConfigurationManager.AppSettings["prefix"];
 				_fileName = ConfigurationManager.AppSettings["fileName"];
+                _size = int.Parse(ConfigurationManager.AppSettings["size"]);
 			}
 			catch ( Exception e )
 			{
@@ -120,8 +124,8 @@ namespace ProxyChanger
 				return true;
 			}
 
-			var line = GetRamdomLine(lines);
-			if ( !WriteLines(line) )
+            GetRamdomLines(lines, _size);
+            if (!WriteLines(lines, _size))
 			{
 				_log.Error("Unable to write lines to a file {0}", _fileName);
 				return false;
@@ -209,25 +213,50 @@ namespace ProxyChanger
 			return lines;
 		}
 
-		private string GetRamdomLine(string[] lines)
-		{
-			var rnd = new Random(DateTime.UtcNow.Millisecond);
-			var no = rnd.Next(lines.Length);
-			return lines[no];
-		}
+        private void GetRamdomLines(string[] lines, int size)
+	    {
+	        int pos = 0;
+            int lenght = Math.Min(size, lines.Length);
 
-		private bool WriteLines(string line)
-		{
+            var rnd = new Random(DateTime.UtcNow.Millisecond);
+            while (pos < lenght)
+	        {
+                var no = rnd.Next(lines.Length - pos);
+
+	            string tmp = lines[pos];
+                lines[pos] = lines[pos + no];
+                lines[pos + no] = tmp;
+	            pos++;
+	        }
+	    }
+
+        private bool WriteLines(string[] lines, int size)
+	    {
 			_log.Debug("Writing lines to a file {0}", _fileName);
 
-			string[] lines =
+		    var tfc = new TempFileCollection(Path.GetTempPath(), false);
+            try
+            {
+                var tmpFileName = Path.ChangeExtension(Path.GetTempFileName(), ".tmp");
+                using (var file = new System.IO.StreamWriter(tmpFileName))
                 {
-                    _prefix + line,
-                    _login + ":" + _password,
-                };
-			try
-			{
-				File.WriteAllLines(_fileName, lines);
+                    tfc.AddFile(tmpFileName, false);
+
+                    long pos = 0;
+                    foreach (var line in lines)
+                    {
+                        file.WriteLine(_prefix + line);
+                        pos++;
+                        if (pos >= size) break;
+                    }
+
+                    if (!string.IsNullOrEmpty(_login) && !string.IsNullOrEmpty(_password))
+                    {
+                        file.WriteLine(_login + ":" + _password);
+                    }
+                }
+                if (File.Exists(_fileName)) File.Delete(_fileName);
+                File.Move(tmpFileName, _fileName);
 			}
 			catch ( Exception e )
 			{
