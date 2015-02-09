@@ -242,17 +242,24 @@ namespace ProxyChanger
                 {
                     tfc.AddFile(tmpFileName, false);
 
-                    long pos = 0;
-                    foreach (var line in lines)
+                    bool withLogin = !string.IsNullOrEmpty(_login) && !string.IsNullOrEmpty(_password);
+
+                    int last = size - 1;
+                    for (int i = 0; i < size; i++)
                     {
-                        file.WriteLine(_prefix + line);
-                        pos++;
-                        if (pos >= size) break;
+                        string line = lines[i];
+                        var value = _prefix + line;
+                        if (i != last || withLogin)
+                            file.WriteLine(value);
+                        else
+                        {
+                            file.Write(value);
+                        }
                     }
 
-                    if (!string.IsNullOrEmpty(_login) && !string.IsNullOrEmpty(_password))
+                    if (withLogin)
                     {
-                        file.WriteLine(_login + ":" + _password);
+                        file.Write(_login + ":" + _password);
                     }
                 }
                 if (File.Exists(_fileName)) File.Delete(_fileName);
