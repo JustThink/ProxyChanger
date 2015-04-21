@@ -8,7 +8,7 @@ namespace ProxyChanger
 	class Program
 	{
 		private static readonly string CurrentMethodDeclaringType = MethodBase.GetCurrentMethod().DeclaringType.ToString();
-		private static readonly Logger Log = LogManager.GetLogger(CurrentMethodDeclaringType);
+		internal static readonly Logger Log = LogManager.GetLogger(CurrentMethodDeclaringType);
 
 
 

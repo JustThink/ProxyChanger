@@ -230,47 +230,51 @@ namespace ProxyChanger
 	        }
 	    }
 
-        private bool WriteLines(string[] lines, int size)
+	    private bool WriteLines(string[] lines, int size)
 	    {
-			_log.Debug("Writing lines to a file {0}", _fileName);
+	        _log.Debug("Writing lines to a file {0}", _fileName);
 
-		    var tfc = new TempFileCollection(Path.GetTempPath(), false);
-            try
+	        bool rc = false;
+            FileMode mode = FileMode.CreateNew;
+            if (File.Exists(_fileName))
+                mode = FileMode.Truncate;
+
+            FileLocker.Lock(_fileName, 1000, (fileStream) =>
             {
-                var tmpFileName = Path.ChangeExtension(Path.GetTempFileName(), ".tmp");
-                using (var file = new System.IO.StreamWriter(tmpFileName))
+                try
                 {
-                    tfc.AddFile(tmpFileName, false);
-
-                    bool withLogin = !string.IsNullOrEmpty(_login) && !string.IsNullOrEmpty(_password);
-
-                    int last = size - 1;
-                    for (int i = 0; i < size; i++)
+                    using (var file = new System.IO.StreamWriter(fileStream))
                     {
-                        string line = lines[i];
-                        var value = _prefix + line;
-                        if (i != last || withLogin)
-                            file.WriteLine(value);
-                        else
+                        bool withLogin = !string.IsNullOrEmpty(_login) && !string.IsNullOrEmpty(_password);
+
+                        int last = size - 1;
+                        for (int i = 0; i < size; i++)
                         {
-                            file.Write(value);
+                            string line = lines[i];
+                            var value = _prefix + line;
+                            if (i != last || withLogin)
+                                file.WriteLine(value);
+                            else
+                            {
+                                file.Write(value);
+                            }
+                        }
+
+                        if (withLogin)
+                        {
+                            file.Write(_login + ":" + _password);
                         }
                     }
 
-                    if (withLogin)
-                    {
-                        file.Write(_login + ":" + _password);
-                    }
+                    rc = true;
                 }
-                if (File.Exists(_fileName)) File.Delete(_fileName);
-                File.Move(tmpFileName, _fileName);
-			}
-			catch ( Exception e )
-			{
-				_log.ErrorException("Error when write file", e);
-				return false;
-			}
-			return true;
-		}
+                finally
+                {
+                    fileStream.Close();
+                    fileStream.Dispose();
+                }
+            }, mode, FileAccess.ReadWrite, FileShare.ReadWrite);
+	        return rc;
+	    }
 	}
 }
