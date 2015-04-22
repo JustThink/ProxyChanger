@@ -24,6 +24,7 @@ namespace ProxyChanger
 		private string _prefix;
 		private string _fileName;
         private int _size;
+        private int _rows;
 
 		public Worker(Logger Log)
 		{
@@ -66,6 +67,7 @@ namespace ProxyChanger
 				_prefix = ConfigurationManager.AppSettings["prefix"];
 				_fileName = ConfigurationManager.AppSettings["fileName"];
                 _size = int.Parse(ConfigurationManager.AppSettings["size"]);
+                _rows = int.Parse(ConfigurationManager.AppSettings["rows"]);
 			}
 			catch ( Exception e )
 			{
@@ -123,6 +125,11 @@ namespace ProxyChanger
 				_log.Debug("Skip step...");
 				return true;
 			}
+		    if (lines.Length <= _rows)
+		    {
+                _log.Debug("The source file contains too few rows...");
+                return true;
+		    }
 
             GetRamdomLines(lines, _size);
             if (!WriteLines(lines, _size))
