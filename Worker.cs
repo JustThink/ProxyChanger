@@ -5,6 +5,7 @@ using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Timers;
 using NLog;
 
@@ -25,6 +26,8 @@ namespace ProxyChanger
 		private string _fileName;
         private int _size;
         private int _rows;
+        private string _use_file;
+        private DateTime? _not_use;
 
 		public Worker(Logger Log)
 		{
@@ -68,6 +71,8 @@ namespace ProxyChanger
 				_fileName = ConfigurationManager.AppSettings["fileName"];
                 _size = int.Parse(ConfigurationManager.AppSettings["size"]);
                 _rows = int.Parse(ConfigurationManager.AppSettings["rows"]);
+                _use_file = ConfigurationManager.AppSettings["prefix"];
+                _not_use = GetDateTime(ConfigurationManager.AppSettings["not_use"]);
 			}
 			catch ( Exception e )
 			{
@@ -76,6 +81,29 @@ namespace ProxyChanger
 			}
 			return true;
 		}
+
+        private DateTime? GetDateTime(string value)
+	    {
+            if (string.IsNullOrEmpty(value)) return null;
+            string from = value.ToLower();
+            if (from == "all") return null;
+            try
+            {
+                var m = Regex.Match(value, @"^-(?<day>\d*?)d$");
+                if (m.Success)
+                {
+                    var day = m.Groups["day"].Value;
+                    int d;
+                    if (int.TryParse(day, out d))
+                    {
+                        return DateTime.Today.AddDays(-d);
+                    }
+                }
+            }
+            catch { }
+            _log.Warn("Not found 'DateTime': " + value);
+            return null;
+	    }
 
 		private bool Runnig()
 		{
