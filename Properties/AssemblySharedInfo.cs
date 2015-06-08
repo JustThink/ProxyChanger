@@ -13,7 +13,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
-[assembly: AssemblyVersion("0.2.0.4")]
+[assembly: AssemblyVersion("0.2.0.5")]
 
 [assembly: ComVisible(false)]
 

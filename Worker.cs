@@ -1,11 +1,8 @@
 ﻿using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Text.RegularExpressions;
 using System.Timers;
 using NLog;
 
@@ -26,12 +23,13 @@ namespace ProxyChanger
 		private string _fileName;
         private int _size;
         private int _rows;
-        private string _use_file;
-        private DateTime? _not_use;
+	    private readonly ProxyList _proxyList;
 
 		public Worker(Logger Log)
 		{
 			_log = Log;
+
+            _proxyList = new ProxyList(_log);
 
 			_timer = new Timer();
 			_timer.Elapsed += ElapsedEvent;
@@ -71,8 +69,8 @@ namespace ProxyChanger
 				_fileName = ConfigurationManager.AppSettings["fileName"];
                 _size = int.Parse(ConfigurationManager.AppSettings["size"]);
                 _rows = int.Parse(ConfigurationManager.AppSettings["rows"]);
-                _use_file = ConfigurationManager.AppSettings["prefix"];
-                _not_use = GetDateTime(ConfigurationManager.AppSettings["not_use"]);
+
+			    if (!_proxyList.Initialization()) return false;
 			}
 			catch ( Exception e )
 			{
@@ -81,29 +79,6 @@ namespace ProxyChanger
 			}
 			return true;
 		}
-
-        private DateTime? GetDateTime(string value)
-	    {
-            if (string.IsNullOrEmpty(value)) return null;
-            string from = value.ToLower();
-            if (from == "all") return null;
-            try
-            {
-                var m = Regex.Match(value, @"^-(?<day>\d*?)d$");
-                if (m.Success)
-                {
-                    var day = m.Groups["day"].Value;
-                    int d;
-                    if (int.TryParse(day, out d))
-                    {
-                        return DateTime.Today.AddDays(-d);
-                    }
-                }
-            }
-            catch { }
-            _log.Warn("Not found 'DateTime': " + value);
-            return null;
-	    }
 
 		private bool Runnig()
 		{
@@ -142,6 +117,7 @@ namespace ProxyChanger
 			if ( !IsExists() )
 				return false;
 
+            _proxyList.Loading();
 			var lines = GetLines();
 			if ( lines == null )
 			{
@@ -158,6 +134,8 @@ namespace ProxyChanger
                 _log.Debug("The source file contains too few rows...");
                 return true;
 		    }
+            _proxyList.AddProxyIfNotExists(lines);
+            _proxyList.Save();
 
             GetRamdomLines(lines, _size);
             if (!WriteLines(lines, _size))
@@ -248,7 +226,7 @@ namespace ProxyChanger
 			return lines;
 		}
 
-        private void GetRamdomLines(string[] lines, int size)
+        private static void GetRamdomLines(string[] lines, int size)
 	    {
 	        int pos = 0;
             int lenght = Math.Min(size, lines.Length);
@@ -265,11 +243,11 @@ namespace ProxyChanger
 	        }
 	    }
 
-	    private bool WriteLines(string[] lines, int size)
-	    {
-	        _log.Debug("Writing lines to a file {0}", _fileName);
+        private bool WriteLines(string[] lines, int size)
+        {
+            _log.Debug("Writing lines to a file {0}", _fileName);
 
-	        bool rc = false;
+            bool rc = false;
             FileMode mode = FileMode.CreateNew;
             if (File.Exists(_fileName))
                 mode = FileMode.Truncate;
@@ -278,15 +256,21 @@ namespace ProxyChanger
             {
                 try
                 {
-                    using (var file = new System.IO.StreamWriter(fileStream))
+                    using (var file = new StreamWriter(fileStream))
                     {
                         bool withLogin = !string.IsNullOrEmpty(_login) && !string.IsNullOrEmpty(_password);
 
-                        int last = size - 1;
-                        for (int i = 0; i < size; i++)
+                        for (int i = 0; i < size && i < lines.Length; i++)
                         {
+                            int last = size - 1;
                             string line = lines[i];
-                            var value = _prefix + line;
+                            if (!_proxyList.CanUse(line))
+                            {
+                                size++; // пропускаем прокси
+                                continue;
+                            }
+                            var values = line.Split('\t');
+                            var value = _prefix + values[0];
                             if (i != last || withLogin)
                                 file.WriteLine(value);
                             else
